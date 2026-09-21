@@ -1994,3 +1994,44 @@
   border: none !important;
   box-shadow: none !important;
 }
+
+/* =========================================
+   FIX MCQ SELECTED STATE
+========================================= */
+
+/* Toàn bộ hàng đáp án luôn nền trắng */
+.english-option,
+.english-option.selected {
+  background: #fff !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Text đáp án luôn hiện màu đen */
+.english-option > span:not(.english-option-letter),
+.english-option.selected > span:not(.english-option-letter) {
+  background: transparent !important;
+  color: #111827 !important;
+
+  border: none !important;
+  box-shadow: none !important;
+
+  opacity: 1 !important;
+}
+
+/* Chỉ A/B/C/D đổi màu khi chọn */
+.english-option .english-option-letter {
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+}
+
+.english-option.selected .english-option-letter {
+  background: #ff7652 !important;
+  color: #fff !important;
+}
+
+/* Không cho rule selected cũ tác động lên mọi span */
+.english-option.selected span:not(.english-option-letter) {
+  background: transparent !important;
+  color: #111827 !important;
+}
