@@ -1,0 +1,32 @@
+CREATE DATABASE IF NOT EXISTS hquiz CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE hquiz;
+
+CREATE TABLE topics (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(150) NOT NULL UNIQUE,
+  icon VARCHAR(10) NOT NULL DEFAULT '•',
+  tone VARCHAR(30) NOT NULL DEFAULT 'blue',
+  question_count INT NOT NULL DEFAULT 0,
+  progress TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE questions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  topic_id INT NOT NULL,
+  question_text TEXT NOT NULL,
+  options JSON NOT NULL,
+  correct_answer TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  explanation TEXT,
+  difficulty ENUM('easy', 'medium', 'hard') NOT NULL DEFAULT 'medium',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+);
+
+CREATE TABLE quiz_results (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  total_questions INT NOT NULL,
+  correct_answers INT NOT NULL,
+  duration_seconds INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
