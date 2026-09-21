@@ -49,6 +49,12 @@ export default function EnglishModule({ onBack }) {
 
   const [result, setResult] = useState(null);
 
+  const [codeInput, setCodeInput] = useState("");
+
+  const [codeOutput, setCodeOutput] = useState("");
+
+  const [runningCode, setRunningCode] = useState(false);
+
   useEffect(() => {
     loadTests();
   }, []);
@@ -210,6 +216,77 @@ if __name__ == "__main__":
     }));
   };
 
+  async function runCurrentCode(question, language, code) {
+    if (!code.trim()) {
+      setCodeOutput("Bạn chưa nhập code.");
+      return;
+    }
+
+    if (language === "sql") {
+      setCodeOutput("SQL sẽ được nối bộ thực thi riêng ở bước tiếp theo.");
+      return;
+    }
+
+    setRunningCode(true);
+    setCodeOutput("Đang chạy...");
+
+    try {
+      const response = await fetch(`${API_URL}/api/code/run`, {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          language,
+          sourceCode: code,
+          stdin: codeInput,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Không chạy được code");
+      }
+
+      let output = "";
+
+      output += `Status: ${data.status?.description || "Unknown"}\n`;
+
+      if (data.time) {
+        output += `Time: ${data.time}s\n`;
+      }
+
+      if (data.memory) {
+        output += `Memory: ${data.memory} KB\n`;
+      }
+
+      if (data.stdout) {
+        output += `\nOutput:\n${data.stdout}`;
+      }
+
+      if (data.compileOutput) {
+        output += `\nCompile error:\n${data.compileOutput}`;
+      }
+
+      if (data.stderr) {
+        output += `\nRuntime error:\n${data.stderr}`;
+      }
+
+      if (data.message) {
+        output += `\n${data.message}`;
+      }
+
+      setCodeOutput(output);
+    } catch (err) {
+      setCodeOutput(`Lỗi: ${err.message}`);
+    } finally {
+      setRunningCode(false);
+    }
+  }
+
   async function loadTests() {
     setLoading(true);
     setError("");
@@ -260,6 +337,12 @@ if __name__ == "__main__":
       setCurrentIndex(0);
 
       setResult(null);
+
+      setCodeInput("");
+
+      setCodeOutput("");
+
+      setRunningCode(false);
 
       setTimeLeft(Number(data.test.time_limit_minutes || 30) * 60);
 
@@ -647,9 +730,10 @@ if __name__ == "__main__":
                       <select
                         className="coding-language-select"
                         value={language}
-                        onChange={(event) =>
-                          changeCodingLanguage(current, event.target.value)
-                        }
+                        onChange={(event) => {
+                          changeCodingLanguage(current, event.target.value);
+                          setCodeOutput("");
+                        }}
                       >
                         {languages.map((item) => (
                           <option key={item} value={item}>
@@ -695,7 +779,10 @@ if __name__ == "__main__":
                       <button
                         type="button"
                         className="coding-reset-button"
-                        onClick={() => resetCodingCode(current, language)}
+                        onClick={() => {
+                          resetCodingCode(current, language);
+                          setCodeOutput("");
+                        }}
                       >
                         Đặt lại code
                       </button>
@@ -703,22 +790,35 @@ if __name__ == "__main__":
                       <button
                         type="button"
                         className="coding-run-button"
+                        disabled={runningCode}
                         onClick={() =>
-                          window.alert(
-                            "Trình soạn thảo đã hoạt động. Nút Run Code sẽ chạy thật sau khi nối API thực thi code (Judge0).",
-                          )
+                          runCurrentCode(current, language, code)
                         }
                       >
-                        ▶ Run Code
+                        {runningCode ? "Đang chạy..." : "▶ Run Code"}
                       </button>
+                    </div>
+
+                    <div className="coding-stdin">
+                      <label htmlFor={`stdin-${current.id}`}>
+                        Input (stdin)
+                      </label>
+
+                      <textarea
+                        id={`stdin-${current.id}`}
+                        value={codeInput}
+                        onChange={(event) => setCodeInput(event.target.value)}
+                        placeholder="Nhập dữ liệu đầu vào cho chương trình..."
+                        spellCheck="false"
+                      />
                     </div>
 
                     <div className="coding-console">
                       <div className="coding-console-title">Kết quả chạy</div>
-                      <div className="coding-console-placeholder">
-                        Chưa chạy code. Sau khi kết nối Judge0, stdout, lỗi biên
-                        dịch và kết quả test case sẽ hiển thị tại đây.
-                      </div>
+
+                      <pre className="coding-console-output">
+                        {codeOutput || "Nhấn Run Code để xem kết quả."}
+                      </pre>
                     </div>
                   </div>
                 </div>

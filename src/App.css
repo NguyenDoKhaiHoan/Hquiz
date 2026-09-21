@@ -1804,3 +1804,61 @@
     width: 100%;
   }
 }
+
+/* ===== HQUIZ CODING - STDIN + RUN RESULT ===== */
+
+.coding-stdin {
+  padding: 14px 16px;
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.coding-stdin label {
+  display: block;
+  margin-bottom: 8px;
+  color: #444b57;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.coding-stdin textarea {
+  width: 100%;
+  min-height: 92px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #d9dde4;
+  border-radius: 10px;
+  outline: none;
+  resize: vertical;
+  background: #fafbfc;
+  color: #202736;
+  font-family: Consolas, Monaco, "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.coding-stdin textarea:focus {
+  border-color: #ff7a50;
+  box-shadow: 0 0 0 3px rgba(255, 122, 80, 0.12);
+  background: #ffffff;
+}
+
+.coding-console-output {
+  min-height: 92px;
+  max-height: 260px;
+  margin: 0;
+  padding: 8px 16px 18px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #252c38;
+  font-family: Consolas, Monaco, "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.coding-run-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+  transform: none;
+}
