@@ -2035,3 +2035,107 @@
   background: transparent !important;
   color: #111827 !important;
 }
+
+/* =========================================
+   ANSWER CARD BORDER
+========================================= */
+
+.english-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.english-option {
+  width: 100%;
+  min-height: 72px;
+  padding: 14px 18px;
+
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  background: #ffffff !important;
+  border: 1px solid #dcdfe4 !important;
+  border-radius: 18px;
+  box-shadow: none !important;
+
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+/* hover */
+.english-option:hover {
+  border-color: #ffb095 !important;
+  background: #fffaf8 !important;
+}
+
+/* trạng thái selected: giữ khung, thêm viền cam nhẹ */
+.english-option.selected {
+  background: #ffffff !important;
+  border: 1.5px solid #ff7a50 !important;
+  box-shadow: 0 0 0 3px rgba(255, 122, 80, 0.08) !important;
+}
+
+/* ô A/B/C/D */
+.english-option .english-option-letter {
+  width: 58px;
+  min-width: 58px;
+  height: 58px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 16px;
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* khi chọn chỉ ô chữ cái đổi màu */
+.english-option.selected .english-option-letter {
+  background: #ff7a50 !important;
+  color: #ffffff !important;
+}
+
+/* text đáp án */
+.english-option > span:not(.english-option-letter) {
+  flex: 1;
+  display: block;
+
+  background: transparent !important;
+  color: #111827 !important;
+
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.45;
+
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* mobile */
+@media (max-width: 700px) {
+  .english-option {
+    min-height: 64px;
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .english-option .english-option-letter {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    font-size: 18px;
+  }
+
+  .english-option > span:not(.english-option-letter) {
+    font-size: 16px;
+  }
+}
