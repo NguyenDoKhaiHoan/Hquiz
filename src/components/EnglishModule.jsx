@@ -353,7 +353,15 @@ export default function EnglishModule({ onBack }) {
 
   const current = questions[currentIndex];
 
-  const answeredCount = Object.keys(answers).length;
+  const answeredCount = Object.values(answers).filter((answer) => {
+    if (answer === null || answer === undefined) return false;
+
+    if (typeof answer === "string") {
+      return answer.trim().length > 0;
+    }
+
+    return true;
+  }).length;
 
   return (
     <div className="english-page english-exam">
@@ -406,27 +414,57 @@ export default function EnglishModule({ onBack }) {
 
           <h2>{current.prompt}</h2>
 
-          <div className="english-options">
-            {(current.options || []).map((option, optionIndex) => {
-              const letter = String.fromCharCode(65 + optionIndex);
+          {test.type === "english_writing" ? (
+            <div className="english-writing-box">
+              <textarea
+                className="english-writing-textarea"
+                value={answers[current.id] || ""}
+                onChange={(e) => {
+                  setAnswers((prev) => ({
+                    ...prev,
+                    [current.id]: e.target.value,
+                  }));
+                }}
+                placeholder="Write your answer here..."
+                spellCheck="true"
+              />
 
-              const selected = answers[String(current.id)] === letter;
+              <div className="english-writing-info">
+                <span>
+                  {
+                    (answers[current.id] || "")
+                      .trim()
+                      .split(/\s+/)
+                      .filter(Boolean).length
+                  }{" "}
+                  words
+                </span>
 
-              return (
-                <button
-                  key={letter}
-                  className={
-                    selected ? "english-option selected" : "english-option"
-                  }
-                  onClick={() => chooseAnswer(current.id, letter)}
-                >
-                  <span>{letter}</span>
+                <span>
+                  Your answer is saved while you move between questions.
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="english-options">
+              {current.options?.map((option, optionIndex) => {
+                const letter = String.fromCharCode(65 + optionIndex);
+                const selected = answers[current.id] === letter;
 
-                  <b>{option}</b>
-                </button>
-              );
-            })}
-          </div>
+                return (
+                  <button
+                    type="button"
+                    key={letter}
+                    className={`english-option ${selected ? "selected" : ""}`}
+                    onClick={() => chooseAnswer(current.id, letter)}
+                  >
+                    <span className="english-option-letter">{letter}</span>
+                    <span>{option}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 

@@ -1472,3 +1472,75 @@
     gap: 10px;
   }
 }
+
+/* =========================
+   ENGLISH WRITING
+========================= */
+
+.english-writing-box {
+  margin-top: 24px;
+}
+
+.english-writing-textarea {
+  width: 100%;
+  min-height: 260px;
+  padding: 20px 22px;
+
+  border: 1.5px solid #d9dde5;
+  border-radius: 16px;
+
+  background: #ffffff;
+  color: #182033;
+
+  font-size: 17px;
+  line-height: 1.75;
+  font-family: inherit;
+
+  resize: vertical;
+  outline: none;
+
+  box-sizing: border-box;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.english-writing-textarea::placeholder {
+  color: #a1a8b3;
+}
+
+.english-writing-textarea:hover {
+  border-color: #c2c8d0;
+}
+
+.english-writing-textarea:focus {
+  border-color: #ff7a50;
+
+  box-shadow: 0 0 0 4px rgba(255, 122, 80, 0.12);
+}
+
+.english-writing-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  margin-top: 10px;
+
+  color: #7b8190;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .english-writing-textarea {
+    min-height: 220px;
+    font-size: 16px;
+    padding: 16px;
+  }
+
+  .english-writing-info {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}
