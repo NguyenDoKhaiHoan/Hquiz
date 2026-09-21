@@ -31,7 +31,7 @@ const topics = [
   { name: "Spring Framework", icon: "✳", tone: "orange" },
 ];
 const seedQuestions = [];
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const QUESTIONS_STORAGE_KEY = "hquiz.questions";
 const PROGRESS_STORAGE_KEY = "hquiz.progress";
 const initialProgress = {
