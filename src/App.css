@@ -1982,3 +1982,15 @@
     font-size: 16px;
   }
 }
+
+.english-option {
+  background: #fff !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.english-option > span:not(.english-option-letter) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
