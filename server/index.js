@@ -412,3 +412,241 @@ initializeDatabase()
 
     process.exit(1);
   });
+
+app.get("/api/english-tests", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        qt.id,
+        qt.title,
+        qt.type,
+        qt.description,
+        qt.time_limit_minutes,
+        qt.difficulty,
+        et.title AS topic_title,
+        COUNT(qq.id)::int AS question_count
+      FROM public.quiz_tests qt
+      LEFT JOIN public.english_topics et
+        ON et.id = qt.english_topic_id
+      LEFT JOIN public.quiz_questions qq
+        ON qq.test_id = qt.id
+      WHERE
+        qt.english_topic_id IS NOT NULL
+        AND qt.is_active = TRUE
+      GROUP BY
+        qt.id,
+        et.title
+      ORDER BY qt.id DESC
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("GET /api/english-tests:", error);
+
+    res.status(500).json({
+      error: "Không tải được danh sách English Test",
+    });
+  }
+});
+
+app.post("/api/tests/:testId/start", async (req, res) => {
+  try {
+    const testId = Number(req.params.testId);
+
+    if (!Number.isInteger(testId)) {
+      return res.status(400).json({
+        error: "testId không hợp lệ",
+      });
+    }
+
+    const testResult = await pool.query(
+      `
+      SELECT
+        qt.id,
+        qt.title,
+        qt.type,
+        qt.description,
+        qt.time_limit_minutes,
+        qt.difficulty,
+        et.title AS topic_title
+      FROM public.quiz_tests qt
+      LEFT JOIN public.english_topics et
+        ON et.id = qt.english_topic_id
+      WHERE
+        qt.id = $1
+        AND qt.is_active = TRUE
+      LIMIT 1
+      `,
+      [testId],
+    );
+
+    if (!testResult.rows.length) {
+      return res.status(404).json({
+        error: "Không tìm thấy bài thi",
+      });
+    }
+
+    const test = testResult.rows[0];
+
+    const attemptResult = await pool.query(
+      `
+      INSERT INTO public.quiz_attempts (
+        test_id,
+        status
+      )
+      VALUES ($1, 'in_progress')
+      RETURNING
+        id,
+        started_at
+      `,
+      [testId],
+    );
+
+    // TUYỆT ĐỐI KHÔNG SELECT correct_answer ở đây
+    const questionResult = await pool.query(
+      `
+      SELECT
+        id,
+        prompt,
+        options,
+        difficulty
+      FROM public.quiz_questions
+      WHERE test_id = $1
+      ORDER BY id
+      `,
+      [testId],
+    );
+
+    res.json({
+      attemptId: attemptResult.rows[0].id,
+      startedAt: attemptResult.rows[0].started_at,
+      test,
+      questions: questionResult.rows,
+    });
+  } catch (error) {
+    console.error("POST start test:", error);
+
+    res.status(500).json({
+      error: "Không thể bắt đầu bài thi",
+    });
+  }
+});
+
+app.post("/api/tests/:testId/submit-mcq", async (req, res) => {
+  try {
+    const testId = Number(req.params.testId);
+
+    const { attemptId, answers = {} } = req.body;
+
+    if (!Number.isInteger(testId)) {
+      return res.status(400).json({
+        error: "testId không hợp lệ",
+      });
+    }
+
+    if (!attemptId) {
+      return res.status(400).json({
+        error: "Thiếu attemptId",
+      });
+    }
+
+    const attemptResult = await pool.query(
+      `
+      SELECT
+        qa.id,
+        qa.test_id,
+        qa.status,
+        qa.started_at,
+        qt.time_limit_minutes
+      FROM public.quiz_attempts qa
+      JOIN public.quiz_tests qt
+        ON qt.id = qa.test_id
+      WHERE
+        qa.id = $1
+        AND qa.test_id = $2
+      LIMIT 1
+      `,
+      [attemptId, testId],
+    );
+
+    if (!attemptResult.rows.length) {
+      return res.status(404).json({
+        error: "Không tìm thấy lượt thi",
+      });
+    }
+
+    const attempt = attemptResult.rows[0];
+
+    if (attempt.status !== "in_progress") {
+      return res.status(400).json({
+        error: "Bài thi này đã được nộp",
+      });
+    }
+
+    const questionResult = await pool.query(
+      `
+      SELECT
+        id,
+        prompt,
+        options,
+        correct_answer,
+        explanation
+      FROM public.quiz_questions
+      WHERE test_id = $1
+      ORDER BY id
+      `,
+      [testId],
+    );
+
+    let correct = 0;
+
+    const details = questionResult.rows.map((question) => {
+      const selected = answers[String(question.id)] ?? null;
+
+      const isCorrect = selected === question.correct_answer;
+
+      if (isCorrect) {
+        correct += 1;
+      }
+
+      return {
+        questionId: question.id,
+        prompt: question.prompt,
+        options: question.options,
+        selected,
+        correctAnswer: question.correct_answer,
+        correct: isCorrect,
+        explanation: question.explanation,
+      };
+    });
+
+    const total = questionResult.rows.length;
+
+    const score = total === 0 ? 0 : Math.round((correct / total) * 100);
+
+    await pool.query(
+      `
+      UPDATE public.quiz_attempts
+      SET
+        score = $1,
+        status = 'evaluated',
+        submitted_at = NOW()
+      WHERE id = $2
+      `,
+      [score, attemptId],
+    );
+
+    res.json({
+      score,
+      correct,
+      total,
+      details,
+    });
+  } catch (error) {
+    console.error("POST submit MCQ:", error);
+
+    res.status(500).json({
+      error: "Không thể chấm bài",
+    });
+  }
+});

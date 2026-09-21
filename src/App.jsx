@@ -12,6 +12,7 @@ import {
   Filter,
   LayoutDashboard,
   Library,
+  Languages,
   MoreHorizontal,
   Plus,
   Search,
@@ -23,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import "./App.css";
+import EnglishModule from "./components/EnglishModule";
 
 const topics = [
   { name: "Java Core", icon: "☕", tone: "cream" },
@@ -105,9 +107,15 @@ function QuizScreen({
             Bạn đã hoàn thành toàn bộ câu hỏi của chủ đề này.
           </p>
           <div className="result-actions">
-            <button className="secondary-button" onClick={onRestart}>Làm lại chủ đề</button>
-            <button className="secondary-button" onClick={onShuffle}>Đảo câu hỏi</button>
-            <button className="primary-button" onClick={onBack}>Về trang tổng quan <ArrowRight size={16} /></button>
+            <button className="secondary-button" onClick={onRestart}>
+              Làm lại chủ đề
+            </button>
+            <button className="secondary-button" onClick={onShuffle}>
+              Đảo câu hỏi
+            </button>
+            <button className="primary-button" onClick={onBack}>
+              Về trang tổng quan <ArrowRight size={16} />
+            </button>
           </div>
         </div>
       </div>
@@ -239,6 +247,42 @@ function QuizScreen({
   );
 }
 
+const normalizeText = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
+function mergeQuestions(current, incoming) {
+  // Gom chủ đề trùng tên (không phân biệt hoa/thường, thừa khoảng trắng)
+  const topicNames = new Map();
+  current.forEach((item) => {
+    const key = normalizeText(item.topic);
+    if (!topicNames.has(key)) topicNames.set(key, item.topic);
+  });
+  // Nhận diện câu đã có: cùng chủ đề + cùng nội dung câu hỏi
+  const seen = new Set(
+    current.map(
+      (item) => `${normalizeText(item.topic)}|${normalizeText(item.question)}`,
+    ),
+  );
+  const added = [];
+  for (const item of incoming) {
+    const topicKey = normalizeText(item.topic);
+    const topic = topicNames.get(topicKey) || String(item.topic).trim();
+    topicNames.set(topicKey, topic);
+    const duplicateKey = `${topicKey}|${normalizeText(item.question)}`;
+    if (seen.has(duplicateKey)) continue;
+    seen.add(duplicateKey);
+    added.push({ ...item, topic });
+  }
+  return {
+    merged: [...current, ...added],
+    added,
+    skipped: incoming.length - added.length,
+  };
+}
+
 function App() {
   const [page, setPage] = useState("Tổng quan");
   const [questions, setQuestions] = useState(() => {
@@ -270,8 +314,14 @@ function App() {
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizOrder, setQuizOrder] = useState([]);
   const fileInput = useRef(null);
-  const filteredQuizQuestions = questions.filter((item) => quizTopic === "Tất cả chủ đề" || item.topic === quizTopic);
-  const quizQuestions = quizOrder.length ? quizOrder.map((id) => questions.find((item) => item.id === id)).filter(Boolean) : filteredQuizQuestions;
+  const filteredQuizQuestions = questions.filter(
+    (item) => quizTopic === "Tất cả chủ đề" || item.topic === quizTopic,
+  );
+  const quizQuestions = quizOrder.length
+    ? quizOrder
+        .map((id) => questions.find((item) => item.id === id))
+        .filter(Boolean)
+    : filteredQuizQuestions;
   const current = quizQuestions[quizIndex % quizQuestions.length] || {
     topic: "Chưa có chủ đề",
     question: "Chưa có câu hỏi. Hãy nhập file để bắt đầu ôn tập.",
@@ -334,7 +384,9 @@ function App() {
       (item) => item.topic === selectedTopic,
     );
     const answered = progress.answered || {};
-    const shuffledQuestions = [...selectedQuestions].sort(() => Math.random() - 0.5);
+    const shuffledQuestions = [...selectedQuestions].sort(
+      () => Math.random() - 0.5,
+    );
     setQuizOrder(shuffledQuestions.map((item) => item.id));
     const firstUnanswered = shuffledQuestions.findIndex(
       (item) => !answered[String(item.id)],
@@ -358,8 +410,12 @@ function App() {
   }
 
   function restartQuiz(shuffle = true) {
-    const selectedQuestions = questions.filter((item) => item.topic === quizTopic);
-    const nextQuestions = shuffle ? [...selectedQuestions].sort(() => Math.random() - 0.5) : selectedQuestions;
+    const selectedQuestions = questions.filter(
+      (item) => item.topic === quizTopic,
+    );
+    const nextQuestions = shuffle
+      ? [...selectedQuestions].sort(() => Math.random() - 0.5)
+      : selectedQuestions;
     setQuizOrder(nextQuestions.map((item) => item.id));
     setQuizIndex(0);
     setQuizScore(0);
@@ -626,20 +682,22 @@ function App() {
         const explanationCount = imported.filter((item) =>
           item.explanation.trim(),
         ).length;
-        setQuestions(imported);
+        const { merged, added, skipped } = mergeQuestions(questions, imported);
+        setQuestions(merged);
         setTopic("Tất cả chủ đề");
         setQuizTopic("Tất cả chủ đề");
         setQuizIndex(0);
         setQuizAnswers({});
         setAnswer(null);
-        fetch(`${API_URL}/api/questions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(imported),
-        }).catch(() => {});
+        if (added.length)
+          fetch(`${API_URL}/api/questions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(added),
+          }).catch(() => {});
         setUpload({
           status: "success",
-          text: `Đã thêm ${imported.length} câu hỏi; đọc được giải thích ở ${explanationCount} câu từ ${file.name}`,
+          text: `Đã thêm ${added.length} câu hỏi${skipped ? `, bỏ qua ${skipped} câu trùng` : ""} từ ${file.name}; tổng hiện có ${merged.length} câu. Đọc được giải thích ở ${explanationCount} câu.`,
         });
       }
     } catch {
@@ -683,10 +741,26 @@ function App() {
     );
   }
   const nav = [
-    { label: "Tổng quan", icon: LayoutDashboard },
-    { label: "Thư viện câu hỏi", icon: Library },
-    { label: "Chủ đề", icon: BookOpen },
-    { label: "Kết quả", icon: BarChart3 },
+    {
+      label: "Tổng quan",
+      icon: LayoutDashboard,
+    },
+    {
+      label: "Thư viện câu hỏi",
+      icon: Library,
+    },
+    {
+      label: "Chủ đề",
+      icon: BookOpen,
+    },
+    {
+      label: "English Test",
+      icon: Languages,
+    },
+    {
+      label: "Kết quả",
+      icon: BarChart3,
+    },
   ];
   return (
     <div className="app-shell">
@@ -751,6 +825,8 @@ function App() {
             onShuffle={() => restartQuiz(true)}
             onNext={handleQuizNext}
           />
+        ) : page === "English Test" ? (
+          <EnglishModule onBack={() => setPage("Tổng quan")} />
         ) : (
           <>
             <header className="topbar">
