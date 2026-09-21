@@ -444,9 +444,7 @@ app.get("/api/english-tests", async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error("GET /api/english-tests:", error);
-    res.status(500).json({
-      error: "Không tải được danh sách bài test"
-    });
+    res.status(500).json({});
   }
 });
 
