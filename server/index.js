@@ -9,7 +9,11 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
 });
-const port = Number(process.env.PORT || process.env.API_PORT || 3001);
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
 const database = process.env.MYSQL_DATABASE || "hquiz";
 const mysqlConfig = {
   host: process.env.MYSQL_HOST || "127.0.0.1",
