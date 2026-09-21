@@ -98,24 +98,56 @@ export default function EnglishModule({ onBack }) {
 
   const getStarterCode = (question, language) => {
     if (question?.starter_code && typeof question.starter_code === "object") {
-      return question.starter_code[language] || "";
+      const savedStarter = question.starter_code[language];
+
+      if (savedStarter) {
+        return savedStarter;
+      }
     }
 
     switch (language) {
       case "javascript":
         return `function solution(input) {
   // Write your code here
-
+  return input;
 }
 
-console.log(solution(""));
+const fs = require("fs");
+const input = fs.readFileSync(0, "utf8").trim();
+
+console.log(solution(input));
 `;
 
       case "java":
-        return `public class Main {
-    public static void main(String[] args) {
-        // Write your code here
+        return `import java.io.*;
+import java.util.*;
 
+public class Main {
+
+    public static String solution(String input) {
+        // Write your code here
+        return input;
+    }
+
+    public static void main(String[] args) throws Exception {
+        BufferedReader br = new BufferedReader(
+            new InputStreamReader(System.in)
+        );
+
+        StringBuilder input = new StringBuilder();
+        String line;
+
+        while ((line = br.readLine()) != null) {
+            if (input.length() > 0) {
+                input.append("\\n");
+            }
+
+            input.append(line);
+        }
+
+        System.out.println(
+            solution(input.toString())
+        );
     }
 }
 `;
@@ -123,17 +155,33 @@ console.log(solution(""));
       case "cpp":
         return `#include <iostream>
 #include <string>
+#include <sstream>
 using namespace std;
 
-int main() {
+string solution(const string& input) {
     // Write your code here
+    return input;
+}
+
+int main() {
+    ostringstream buffer;
+    buffer << cin.rdbuf();
+
+    string input = buffer.str();
+
+    if (!input.empty() && input.back() == '\\n') {
+        input.pop_back();
+    }
+
+    cout << solution(input);
 
     return 0;
 }
 `;
 
       case "sql":
-        return `-- Write your SQL query here
+        return `-- SQL runner sẽ được xử lý riêng
+-- Write your SQL query here
 
 `;
 
@@ -141,11 +189,15 @@ int main() {
       default:
         return `def solution(input_data):
     # Write your code here
-    pass
+    return input_data
 
 
 if __name__ == "__main__":
-    print(solution(""))
+    import sys
+
+    input_data = sys.stdin.read().strip()
+
+    print(solution(input_data))
 `;
     }
   };
@@ -245,7 +297,19 @@ if __name__ == "__main__":
         }),
       });
 
-      const data = await response.json();
+      const raw = await response.text();
+
+      let data;
+
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        console.error("API returned non-JSON:", raw);
+
+        throw new Error(
+          `API /api/code/run không trả JSON. HTTP ${response.status}.`,
+        );
+      }
 
       if (!response.ok) {
         throw new Error(data.error || "Không chạy được code");
@@ -791,9 +855,7 @@ if __name__ == "__main__":
                         type="button"
                         className="coding-run-button"
                         disabled={runningCode}
-                        onClick={() =>
-                          runCurrentCode(current, language, code)
-                        }
+                        onClick={() => runCurrentCode(current, language, code)}
                       >
                         {runningCode ? "Đang chạy..." : "▶ Run Code"}
                       </button>
