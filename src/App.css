@@ -1862,3 +1862,123 @@
   cursor: wait;
   transform: none;
 }
+
+/* =====================================================
+   FIX MCQ ANSWER OPTION - HQUIZ
+===================================================== */
+
+.english-options {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  margin-top: 26px;
+}
+
+.english-option {
+  width: 100%;
+  min-height: 74px;
+  height: auto;
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+
+  gap: 16px;
+
+  padding: 12px 18px;
+
+  border: 1px solid #dfe2e7;
+  border-radius: 18px;
+
+  background: #fff;
+  color: #111827;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  box-sizing: border-box;
+
+  overflow: visible;
+}
+
+/* Ô A / B / C / D */
+.english-option .english-option-letter {
+  width: 46px;
+  min-width: 46px;
+  height: 46px;
+
+  flex: 0 0 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 14px;
+
+  background: #f4f4f5;
+
+  font-size: 20px;
+  font-weight: 800;
+
+  line-height: 1;
+}
+
+/* QUAN TRỌNG:
+   text đáp án phải chiếm toàn bộ phần còn lại */
+.english-option > span:not(.english-option-letter) {
+  flex: 1 1 auto;
+
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0 !important;
+
+  display: block;
+
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+/* Hover */
+.english-option:hover {
+  border-color: #ff9d7c;
+  background: #fffaf8;
+}
+
+/* Đã chọn */
+.english-option.selected {
+  border-color: #ff7a50;
+  background: #fff5f1;
+}
+
+.english-option.selected .english-option-letter {
+  background: #ff7a50;
+  color: #fff;
+}
+
+/* Mobile */
+@media (max-width: 700px) {
+  .english-option {
+    min-height: 64px;
+    gap: 12px;
+    padding: 10px 14px;
+  }
+
+  .english-option .english-option-letter {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+    font-size: 18px;
+  }
+
+  .english-option > span:not(.english-option-letter) {
+    font-size: 16px;
+  }
+}
