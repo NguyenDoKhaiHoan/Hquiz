@@ -417,34 +417,35 @@ app.get("/api/english-tests", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
-        qt.id,
-        qt.title,
-        qt.type,
-        qt.description,
-        qt.time_limit_minutes,
-        qt.difficulty,
-        et.title AS topic_title,
-        COUNT(qq.id)::int AS question_count
+          qt.id,
+          qt.title,
+          qt.type,
+          qt.description,
+          qt.time_limit_minutes,
+          qt.difficulty,
+          COALESCE(
+              et.title,
+              CASE
+                  WHEN qt.type = 'coding' THEN 'Coding / SQL'
+                  ELSE 'Khác'
+              END
+          ) AS topic_title,
+          COUNT(qq.id)::int AS question_count
       FROM public.quiz_tests qt
       LEFT JOIN public.english_topics et
-        ON et.id = qt.english_topic_id
+          ON et.id = qt.english_topic_id
       LEFT JOIN public.quiz_questions qq
-        ON qq.test_id = qt.id
-      WHERE
-        qt.english_topic_id IS NOT NULL
-        AND qt.is_active = TRUE
-      GROUP BY
-        qt.id,
-        et.title
+          ON qq.test_id = qt.id
+      WHERE qt.is_active = TRUE
+      GROUP BY qt.id, et.title
       ORDER BY qt.id DESC
     `);
 
     res.json(result.rows);
   } catch (error) {
     console.error("GET /api/english-tests:", error);
-
     res.status(500).json({
-      error: "Không tải được danh sách English Test",
+      error: "Không tải được danh sách bài test"
     });
   }
 });
