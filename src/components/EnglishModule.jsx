@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-
+import Editor from "@monaco-editor/react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -70,6 +70,145 @@ export default function EnglishModule({ onBack }) {
       submitExam(true);
     }
   }, [mode, timeLeft, attemptId, submitting]);
+
+  const getCodingAnswer = (question) => {
+    const saved = answers[question.id];
+
+    if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+      return saved;
+    }
+
+    const languages =
+      Array.isArray(question.allowed_languages) &&
+      question.allowed_languages.length > 0
+        ? question.allowed_languages
+        : ["python", "javascript", "java", "cpp"];
+
+    return {
+      language: languages[0],
+      codes: {},
+    };
+  };
+
+  const getStarterCode = (question, language) => {
+    if (question?.starter_code && typeof question.starter_code === "object") {
+      return question.starter_code[language] || "";
+    }
+
+    switch (language) {
+      case "javascript":
+        return `function solution(input) {
+  // Write your code here
+
+}
+
+console.log(solution(""));
+`;
+
+      case "java":
+        return `public class Main {
+    public static void main(String[] args) {
+        // Write your code here
+
+    }
+}
+`;
+
+      case "cpp":
+        return `#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+    // Write your code here
+
+    return 0;
+}
+`;
+
+      case "sql":
+        return `-- Write your SQL query here
+
+`;
+
+      case "python":
+      default:
+        return `def solution(input_data):
+    # Write your code here
+    pass
+
+
+if __name__ == "__main__":
+    print(solution(""))
+`;
+    }
+  };
+
+  const getEditorLanguage = (language) => {
+    if (language === "cpp") return "cpp";
+    if (language === "javascript") return "javascript";
+    if (language === "java") return "java";
+    if (language === "sql") return "sql";
+    return "python";
+  };
+
+  const changeCodingLanguage = (question, language) => {
+    setAnswers((prev) => {
+      const old =
+        prev[question.id] && typeof prev[question.id] === "object"
+          ? prev[question.id]
+          : {
+              language,
+              codes: {},
+            };
+
+      return {
+        ...prev,
+        [question.id]: {
+          ...old,
+          language,
+          codes: old.codes || {},
+        },
+      };
+    });
+  };
+
+  const changeCodingCode = (question, language, code) => {
+    setAnswers((prev) => {
+      const old =
+        prev[question.id] && typeof prev[question.id] === "object"
+          ? prev[question.id]
+          : {
+              language,
+              codes: {},
+            };
+
+      return {
+        ...prev,
+        [question.id]: {
+          ...old,
+          language,
+          codes: {
+            ...(old.codes || {}),
+            [language]: code || "",
+          },
+        },
+      };
+    });
+  };
+
+  const resetCodingCode = (question, language) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [question.id]: {
+        language,
+        codes: {
+          ...(prev[question.id]?.codes || {}),
+          [language]: getStarterCode(question, language),
+        },
+      },
+    }));
+  };
 
   async function loadTests() {
     setLoading(true);
@@ -353,21 +492,39 @@ export default function EnglishModule({ onBack }) {
 
   const current = questions[currentIndex];
 
-  const answeredCount = Object.values(answers).filter((answer) => {
-    if (answer === null || answer === undefined) return false;
+  const isQuestionAnswered = (question) => {
+    const answer = answers[String(question.id)];
+
+    if (answer === null || answer === undefined) {
+      return false;
+    }
+
+    if (test?.type === "coding") {
+      if (typeof answer !== "object" || Array.isArray(answer)) {
+        return false;
+      }
+
+      return Object.values(answer.codes || {}).some(
+        (code) => typeof code === "string" && code.trim().length > 0,
+      );
+    }
 
     if (typeof answer === "string") {
       return answer.trim().length > 0;
     }
 
     return true;
-  }).length;
+  };
+
+  const answeredCount = questions.filter(isQuestionAnswered).length;
 
   return (
     <div className="english-page english-exam">
       <header className="english-exam-top">
         <div>
-          <p className="eyebrow">ENGLISH TEST</p>
+          <p className="eyebrow">
+            {test?.type === "coding" ? "CODING TEST" : "ENGLISH TEST"}
+          </p>
 
           <h2>{test?.title}</h2>
         </div>
@@ -397,7 +554,7 @@ export default function EnglishModule({ onBack }) {
             key={question.id}
             className={[
               index === currentIndex ? "current" : "",
-              answers[String(question.id)] ? "answered" : "",
+              isQuestionAnswered(question) ? "answered" : "",
             ]
               .filter(Boolean)
               .join(" ")}
@@ -409,61 +566,222 @@ export default function EnglishModule({ onBack }) {
       </div>
 
       {current && (
-        <section className="english-question-card">
+        <section
+          className={`english-question-card ${
+            test?.type === "coding" ? "coding-question-card" : ""
+          }`}
+        >
           <p className="eyebrow">CÂU {currentIndex + 1}</p>
 
-          <h2>{current.prompt}</h2>
+          {test.type === "coding" ? (
+            (() => {
+              const codingAnswer = getCodingAnswer(current);
 
-          {test.type === "english_writing" ? (
-            <div className="english-writing-box">
-              <textarea
-                className="english-writing-textarea"
-                value={answers[current.id] || ""}
-                onChange={(e) => {
-                  setAnswers((prev) => ({
-                    ...prev,
-                    [current.id]: e.target.value,
-                  }));
-                }}
-                placeholder="Write your answer here..."
-                spellCheck="true"
-              />
+              const languages =
+                Array.isArray(current.allowed_languages) &&
+                current.allowed_languages.length > 0
+                  ? current.allowed_languages
+                  : ["python", "javascript", "java", "cpp"];
 
-              <div className="english-writing-info">
-                <span>
-                  {
-                    (answers[current.id] || "")
-                      .trim()
-                      .split(/\s+/)
-                      .filter(Boolean).length
-                  }{" "}
-                  words
-                </span>
+              const language = codingAnswer.language || languages[0];
 
-                <span>
-                  Your answer is saved while you move between questions.
-                </span>
-              </div>
-            </div>
+              const code =
+                codingAnswer.codes?.[language] ??
+                getStarterCode(current, language);
+
+              const metadata =
+                current.metadata &&
+                typeof current.metadata === "object" &&
+                !Array.isArray(current.metadata)
+                  ? current.metadata
+                  : {};
+
+              const example = metadata.example || "";
+              const complexity = metadata.knowledge_complexity || "";
+              const difficulty =
+                metadata.difficulty_original || current.difficulty || "";
+
+              return (
+                <div className="coding-workspace">
+                  <div className="coding-problem-panel">
+                    <div className="coding-problem-heading">
+                      <div>
+                        <span className="coding-section-label">Đề bài</span>
+                        <h2>{current.prompt}</h2>
+                      </div>
+
+                      {difficulty && (
+                        <span className="coding-difficulty">{difficulty}</span>
+                      )}
+                    </div>
+
+                    {example && (
+                      <div className="coding-example">
+                        <strong>Ví dụ</strong>
+                        <pre>{example}</pre>
+                      </div>
+                    )}
+
+                    {complexity && (
+                      <div className="coding-complexity">
+                        <strong>Kiến thức / độ phức tạp</strong>
+                        <p>{complexity}</p>
+                      </div>
+                    )}
+
+                    <div className="coding-help">
+                      Code của bạn được lưu khi gõ và vẫn còn khi chuyển qua câu
+                      khác.
+                    </div>
+                  </div>
+
+                  <div className="coding-editor-panel">
+                    <div className="coding-editor-toolbar">
+                      <div>
+                        <span className="coding-section-label">
+                          Trình soạn thảo
+                        </span>
+                        <strong>Code Editor</strong>
+                      </div>
+
+                      <select
+                        className="coding-language-select"
+                        value={language}
+                        onChange={(event) =>
+                          changeCodingLanguage(current, event.target.value)
+                        }
+                      >
+                        {languages.map((item) => (
+                          <option key={item} value={item}>
+                            {item === "python"
+                              ? "Python"
+                              : item === "javascript"
+                                ? "JavaScript"
+                                : item === "java"
+                                  ? "Java"
+                                  : item === "cpp"
+                                    ? "C++"
+                                    : item === "sql"
+                                      ? "SQL"
+                                      : item}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="coding-editor-shell">
+                      <Editor
+                        height="440px"
+                        language={getEditorLanguage(language)}
+                        value={code}
+                        theme="vs-dark"
+                        onChange={(value) =>
+                          changeCodingCode(current, language, value || "")
+                        }
+                        options={{
+                          fontSize: 15,
+                          lineHeight: 23,
+                          minimap: { enabled: false },
+                          automaticLayout: true,
+                          scrollBeyondLastLine: false,
+                          wordWrap: "on",
+                          tabSize: 4,
+                          padding: { top: 16, bottom: 16 },
+                        }}
+                      />
+                    </div>
+
+                    <div className="coding-editor-actions">
+                      <button
+                        type="button"
+                        className="coding-reset-button"
+                        onClick={() => resetCodingCode(current, language)}
+                      >
+                        Đặt lại code
+                      </button>
+
+                      <button
+                        type="button"
+                        className="coding-run-button"
+                        onClick={() =>
+                          window.alert(
+                            "Trình soạn thảo đã hoạt động. Nút Run Code sẽ chạy thật sau khi nối API thực thi code (Judge0).",
+                          )
+                        }
+                      >
+                        ▶ Run Code
+                      </button>
+                    </div>
+
+                    <div className="coding-console">
+                      <div className="coding-console-title">Kết quả chạy</div>
+                      <div className="coding-console-placeholder">
+                        Chưa chạy code. Sau khi kết nối Judge0, stdout, lỗi biên
+                        dịch và kết quả test case sẽ hiển thị tại đây.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
           ) : (
-            <div className="english-options">
-              {current.options?.map((option, optionIndex) => {
-                const letter = String.fromCharCode(65 + optionIndex);
-                const selected = answers[current.id] === letter;
+            <>
+              <h2>{current.prompt}</h2>
 
-                return (
-                  <button
-                    type="button"
-                    key={letter}
-                    className={`english-option ${selected ? "selected" : ""}`}
-                    onClick={() => chooseAnswer(current.id, letter)}
-                  >
-                    <span className="english-option-letter">{letter}</span>
-                    <span>{option}</span>
-                  </button>
-                );
-              })}
-            </div>
+              {test.type === "english_writing" ? (
+                <div className="english-writing-box">
+                  <textarea
+                    className="english-writing-textarea"
+                    value={answers[current.id] || ""}
+                    onChange={(e) => {
+                      setAnswers((prev) => ({
+                        ...prev,
+                        [current.id]: e.target.value,
+                      }));
+                    }}
+                    placeholder="Write your answer here..."
+                    spellCheck="true"
+                  />
+
+                  <div className="english-writing-info">
+                    <span>
+                      {
+                        (answers[current.id] || "")
+                          .trim()
+                          .split(/\s+/)
+                          .filter(Boolean).length
+                      }{" "}
+                      words
+                    </span>
+
+                    <span>
+                      Your answer is saved while you move between questions.
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="english-options">
+                  {current.options?.map((option, optionIndex) => {
+                    const letter = String.fromCharCode(65 + optionIndex);
+                    const selected = answers[current.id] === letter;
+
+                    return (
+                      <button
+                        type="button"
+                        key={letter}
+                        className={`english-option ${
+                          selected ? "selected" : ""
+                        }`}
+                        onClick={() => chooseAnswer(current.id, letter)}
+                      >
+                        <span className="english-option-letter">{letter}</span>
+                        <span>{option}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </section>
       )}
