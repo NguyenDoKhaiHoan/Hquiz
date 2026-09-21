@@ -13,7 +13,153 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-const PORT = process.env.PORT || 3000;
+app.use(cors());
+app.use(express.json({ limit: "2mb" }));
+
+const JUDGE0_URL = process.env.JUDGE0_URL || "https://ce.judge0.com";
+
+const JUDGE0_LANGUAGE_IDS = {
+  python: 71,
+  javascript: 63,
+  java: 62,
+  cpp: 54,
+};
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+app.get("/api/code/health", (_req, res) => {
+  res.json({
+    ok: true,
+    service: "HQuiz Code Runner",
+    judge0: JUDGE0_URL,
+    languages: ["python", "javascript", "java", "cpp"],
+  });
+});
+
+app.post("/api/code/run", async (req, res) => {
+  try {
+    const { language, sourceCode, stdin = "" } = req.body || {};
+
+    if (!language || !sourceCode) {
+      return res.status(400).json({
+        error: "Thiếu language hoặc sourceCode",
+      });
+    }
+
+    const languageId = JUDGE0_LANGUAGE_IDS[language];
+
+    if (!languageId) {
+      return res.status(400).json({
+        error: `Ngôn ngữ "${language}" chưa hỗ trợ chạy bằng Judge0`,
+      });
+    }
+
+    if (sourceCode.length > 50000) {
+      return res.status(400).json({
+        error: "Code quá dài",
+      });
+    }
+
+    if (stdin.length > 10000) {
+      return res.status(400).json({
+        error: "Input quá dài",
+      });
+    }
+
+    const createResponse = await fetch(
+      `${JUDGE0_URL}/submissions?base64_encoded=false&wait=false`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          language_id: languageId,
+          source_code: sourceCode,
+          stdin,
+
+          cpu_time_limit: 3,
+          wall_time_limit: 5,
+          memory_limit: 128000,
+        }),
+      },
+    );
+
+    const createData = await createResponse.json();
+
+    if (!createResponse.ok) {
+      console.error("Judge0 create error:", createData);
+
+      return res.status(502).json({
+        error: createData?.error || "Judge0 không nhận được code",
+      });
+    }
+
+    const token = createData.token;
+
+    if (!token) {
+      return res.status(502).json({
+        error: "Judge0 không trả về token",
+      });
+    }
+
+    let execution = null;
+
+    for (let i = 0; i < 20; i += 1) {
+      await sleep(600);
+
+      const resultResponse = await fetch(
+        `${JUDGE0_URL}/submissions/${token}?base64_encoded=false&fields=stdout,stderr,compile_output,message,status,time,memory`,
+      );
+
+      const resultData = await resultResponse.json();
+
+      if (!resultResponse.ok) {
+        return res.status(502).json({
+          error: resultData?.error || "Không lấy được kết quả Judge0",
+        });
+      }
+
+      execution = resultData;
+
+      const statusId = Number(resultData?.status?.id);
+
+      // 1 = In Queue
+      // 2 = Processing
+      if (statusId !== 1 && statusId !== 2) {
+        break;
+      }
+    }
+
+    if (!execution || [1, 2].includes(Number(execution?.status?.id))) {
+      return res.status(504).json({
+        error: "Chương trình chạy quá lâu hoặc Judge0 đang bận",
+      });
+    }
+
+    return res.json({
+      token,
+      status: execution.status,
+      stdout: execution.stdout || "",
+      stderr: execution.stderr || "",
+      compileOutput: execution.compile_output || "",
+      message: execution.message || "",
+      time: execution.time || null,
+      memory: execution.memory || null,
+    });
+  } catch (error) {
+    console.error("POST /api/code/run:", error);
+
+    res.status(500).json({
+      error: "Không thể chạy code",
+    });
+  }
+});
+
+const PORT = process.env.PORT || 3001;
 
 // ======================================================
 // DATABASE - SUPABASE POSTGRESQL
@@ -34,13 +180,6 @@ const pool = new Pool({
       }
     : undefined,
 });
-
-// ======================================================
-// MIDDLEWARE
-// ======================================================
-
-app.use(cors());
-app.use(express.json({ limit: "2mb" }));
 
 // ======================================================
 // INITIALIZE DATABASE
@@ -505,13 +644,19 @@ app.post("/api/tests/:testId/start", async (req, res) => {
     const questionResult = await pool.query(
       `
       SELECT
-        id,
-        prompt,
-        options,
-        difficulty
-      FROM public.quiz_questions
-      WHERE test_id = $1
-      ORDER BY id
+    id,
+    prompt,
+    options,
+    difficulty,
+    starter_code,
+    allowed_languages,
+    test_cases,
+    metadata,
+    context_text,
+    audio_script
+FROM public.quiz_questions
+WHERE test_id = $1
+ORDER BY id
       `,
       [testId],
     );
